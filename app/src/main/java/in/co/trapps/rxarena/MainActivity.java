@@ -7,6 +7,7 @@ import android.view.View;
 
 import rx.Observable;
 import rx.Observer;
+import rx.functions.Action1;
 import rx.functions.Func1;
 
 public class MainActivity extends AppCompatActivity {
@@ -27,6 +28,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void startRx() {
+        // One Way
         Observer<Integer> observer = new Observer<Integer>() {
             @Override
             public void onCompleted() {
@@ -44,6 +46,14 @@ public class MainActivity extends AppCompatActivity {
             }
         };
 
+        // Second Way
+        Action1<Integer> onNextAction = new Action1<Integer>() {
+            @Override
+            public void call(Integer integer) {
+                Log.d(TAG, "In onNext, Received: " + integer);
+            }
+        };
+
         Observable
                 .just(1, 2, 3, 4, 5) // Emits Numbers
                 .filter(new Func1<Integer, Boolean>() {
@@ -53,6 +63,6 @@ public class MainActivity extends AppCompatActivity {
                         return integer % 2 != 0;
                     }
                 })
-                .subscribe(observer);
+                .subscribe(onNextAction);
     }
 }
