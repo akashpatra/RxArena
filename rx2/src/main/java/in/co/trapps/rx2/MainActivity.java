@@ -1,4 +1,4 @@
-package in.co.trapps.rxarena;
+package in.co.trapps.rx2;
 
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
@@ -6,19 +6,19 @@ import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
 
-import rx.Observable;
-import rx.Observer;
-import rx.Subscription;
-import rx.android.schedulers.AndroidSchedulers;
-import rx.functions.Action1;
-import rx.functions.Func1;
-import rx.functions.Func2;
-import rx.schedulers.Schedulers;
+import io.reactivex.Observable;
+import io.reactivex.Observer;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.BiFunction;
+import io.reactivex.functions.Consumer;
+import io.reactivex.functions.Predicate;
+import io.reactivex.schedulers.Schedulers;
 
 public class MainActivity extends AppCompatActivity {
 
     private final String TAG = "RxArena";
-    private Subscription subscription;
+    private Disposable disposable;
     private TextView tvResult;
 
     @Override
@@ -58,20 +58,20 @@ public class MainActivity extends AppCompatActivity {
 
     private void startRx() {
         // Observables
-        Observable observable = justObservable();
-//        Observable observable = zipObservable();
+//        Observable observable = justObservable();
+        Observable observable = zipObservable();
 
         // Observers
-        Observer observer = completeObserver();
+//        Observer observer = completeObserver();
 
         // Single Action Observers
 //        Action1 action1 = onNextAction();
-//        Action1 action1 = onNextZipObjectAction();
+        Consumer consumer = onNextZipObjectAction();
 
-        subscription = observable
+        observable
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(observer);
+                .subscribe(consumer);
     }
 
     /**
@@ -82,9 +82,9 @@ public class MainActivity extends AppCompatActivity {
     private Observable justObservable() {
         return Observable
                 .just(1, 2, 3, 4, 5) // Emits Numbers
-                .filter(new Func1<Integer, Boolean>() {
+                .filter(new Predicate<Integer>() {
                     @Override
-                    public Boolean call(Integer integer) {
+                    public boolean test(Integer integer) throws Exception {
                         Log.d(TAG, "In filterObservable -> Integer: " + integer);
                         // Check if the number is odd or not. If odd return true, to emit that object.
                         return integer % 2 != 0;
@@ -98,12 +98,12 @@ public class MainActivity extends AppCompatActivity {
      * @return
      */
     private Observable zipObservable() {
-        Observable<Integer> observable1 = Observable.from(new Integer[]{1, 2, 3, 4, 5});  // Emits integers
-        Observable<String> observable2 = Observable.from(new String[]{"A", "B", "C", "D", "F"});  // Emits alphabets
+        Observable<Integer> observable1 = Observable.fromArray(new Integer[]{1, 2, 3, 4, 5});  // Emits integers
+        Observable<String> observable2 = Observable.fromArray(new String[]{"A", "B", "C", "D", "F"});  // Emits alphabets
         Observable<ZipObject> observable = Observable.zip(observable1, observable2,
-                new Func2<Integer, String, ZipObject>() {
+                new BiFunction<Integer, String, ZipObject>() {
                     @Override
-                    public ZipObject call(Integer integer, String s) {
+                    public ZipObject apply(Integer integer, String s) throws Exception {
                         Log.d(TAG, "In zipObservable -> Integer: " + integer + ", String: " + s);
                         ZipObject zipObject = new ZipObject();
                         zipObject.number = integer;
@@ -128,15 +128,21 @@ public class MainActivity extends AppCompatActivity {
     private Observer completeObserver() {
         return new Observer<Integer>() {
             @Override
-            public void onCompleted() {
-                Log.d(TAG, "In onCompleted");
+            public void onComplete() {
+                Log.d(TAG, "In onComplete");
                 String result = tvResult.getText().toString();
-                tvResult.setText(result + " completed");
+                tvResult.setText(result + " complete");
             }
 
             @Override
             public void onError(Throwable e) {
                 Log.d(TAG, "In onError");
+            }
+
+            @Override
+            public void onSubscribe(Disposable d) {
+                Log.d(TAG, "In onSubscribe");
+                disposable = d;
             }
 
             @Override
@@ -152,10 +158,10 @@ public class MainActivity extends AppCompatActivity {
      *
      * @return
      */
-    private Action1 onNextAction() {
-        return new Action1<Integer>() {
+    private Consumer onNextAction() {
+        return new Consumer<Integer>() {
             @Override
-            public void call(Integer integer) {
+            public void accept(Integer integer) throws Exception {
                 Log.d(TAG, "In call, Received: " + integer);
                 updateText(String.valueOf(integer));
             }
@@ -167,10 +173,10 @@ public class MainActivity extends AppCompatActivity {
      *
      * @return
      */
-    private Action1 onNextZipObjectAction() {
-        return new Action1<ZipObject>() {
+    private Consumer<ZipObject> onNextZipObjectAction() {
+        return new Consumer<ZipObject>() {
             @Override
-            public void call(ZipObject zipObject) {
+            public void accept(ZipObject zipObject) throws Exception {
                 Log.d(TAG, "In zipObjectObserver, Integer: " + zipObject.number + ", String: " + zipObject.alphabet);
                 updateText(zipObject.alphabet, String.valueOf(zipObject.number));
             }
@@ -195,6 +201,6 @@ public class MainActivity extends AppCompatActivity {
         super.onDestroy();
 
         // don't send events once the activity is destroyed
-        subscription.unsubscribe();
+        disposable.dispose();
     }
 }
